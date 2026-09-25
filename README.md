@@ -2,7 +2,7 @@
 
 Un juego interactivo y moderno de **3 en Raya (Tic-Tac-Toe)** desarrollado con **HTML5**, **Tailwind CSS** y **JavaScript Vanilla**. Diseñado con una interfaz limpia en modo oscuro, efectos de sonido sintetizados y soporte para partidas contra una Inteligencia Artificial imbatible.
 
-🌐 **Demo en vivo:** [https://sensational-donut-cf3f0c.netlify.app](3enraya-proyecto-de-leo.netlify.app)
+🌐 **Demo en vivo:** [https://3enraya-proyecto-de-leo.netlify.appp](3enraya-proyecto-de-leo.netlify.app)
 ---
 
 ## ✨ Características Principales
