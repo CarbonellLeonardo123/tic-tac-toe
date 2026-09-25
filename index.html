@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3 en Raya (Tic-Tac-Toe) - Edición Pro</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            playerX: '#06b6d4', // Cyan neon
+            playerO: '#f43f5e', // Rose neon
+          },
+          boxShadow: {
+            'neon-x': '0 0 18px rgba(6, 182, 212, 0.45)',
+            'neon-o': '0 0 18px rgba(244, 63, 94, 0.45)',
+            'neon-win': '0 0 25px rgba(234, 179, 8, 0.6)'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes popIn {
+      0% { transform: scale(0.4) rotate(-10deg); opacity: 0; }
+      70% { transform: scale(1.15) rotate(3deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-pop-in {
+      animation: popIn 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 1.8s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-4 selection:bg-cyan-500 selection:text-white font-sans antialiased">
+
+  <!-- Header -->
+  <header class="w-full max-w-md pt-4 pb-2 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-rose-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-xl">
+        #
+      </div>
+      <div>
+        <h1 class="text-2xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-sky-300 to-rose-400">
+          3 EN RAYA
+        </h1>
+        <p class="text-xs text-slate-400 font-medium">Tic-Tac-Toe Interactivo</p>
+      </div>
+    </div>
+
+    <!-- Controles superiores: Sonido y Reglas -->
+    <div class="flex items-center space-x-2">
+      <button id="soundToggleBtn" aria-label="Activar o desactivar sonido" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 transition-all text-slate-300 hover:text-white">
+        <i id="soundIcon" class="fa-solid fa-volume-high text-lg"></i>
+      </button>
+      <button id="resetAllBtn" title="Reiniciar todo el juego y estadísticas" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-900/40 border border-slate-700/60 hover:border-rose-500/50 transition-all text-slate-300 hover:text-rose-400">
+        <i class="fa-solid fa-arrow-rotate-left text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Game Container -->
+  <main class="w-full max-w-md flex flex-col gap-4 my-auto">
+
+    <!-- Selector de Modo de Juego -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-1.5 flex gap-1 shadow-inner backdrop-blur-md">
+      <button id="modePvp" class="flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md flex items-center justify-center gap-2">
+        <i class="fa-solid fa-users"></i>
+        <span>2 Jugadores</span>
+      </button>
+      <button id="modeAiEasy" class="flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-white flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-robot"></i>
+        <span>IA Fácil</span>
+      </button>
+      <button id="modeAiHard" class="flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-white flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-brain"></i>
+        <span>IA Imbatible</span>
+      </button>
+    </div>
+
+    <!-- Marcador de Puntuaciones -->
+    <div class="grid grid-cols-3 gap-2.5 text-center">
+      <!-- Jugador X -->
+      <div id="cardScoreX" class="relative overflow-hidden bg-slate-900/80 border border-cyan-500/30 rounded-2xl p-3 shadow-lg transition-all duration-300">
+        <div class="text-xs uppercase tracking-wider font-bold text-cyan-400 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-xmark"></i>
+          <span id="labelPlayerX">Jugador X</span>
+        </div>
+        <div id="scoreX" class="text-2xl font-black text-cyan-300 mt-0.5">0</div>
+        <div class="h-1 w-full bg-cyan-500/20 absolute bottom-0 left-0">
+          <div id="glowIndicatorX" class="h-full bg-cyan-400 transition-all duration-300 w-full"></div>
+        </div>
+      </div>
+
+      <!-- Empates -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 shadow-lg">
+        <div class="text-xs uppercase tracking-wider font-bold text-slate-400 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-handshake"></i>
+          <span>Empates</span>
+        </div>
+        <div id="scoreTies" class="text-2xl font-black text-slate-300 mt-0.5">0</div>
+        <div class="h-1 w-full bg-slate-700/20 absolute bottom-0 left-0"></div>
+      </div>
+
+      <!-- Jugador O -->
+      <div id="cardScoreO" class="relative overflow-hidden bg-slate-900/80 border border-rose-500/30 rounded-2xl p-3 shadow-lg transition-all duration-300">
+        <div class="text-xs uppercase tracking-wider font-bold text-rose-400 flex items-center justify-center gap-1.5">
+          <i class="fa-regular fa-circle"></i>
+          <span id="labelPlayerO">Jugador O</span>
+        </div>
+        <div id="scoreO" class="text-2xl font-black text-rose-300 mt-0.5">0</div>
+        <div class="h-1 w-full bg-rose-500/20 absolute bottom-0 left-0">
+          <div id="glowIndicatorO" class="h-full bg-rose-400 transition-all duration-300 w-0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indicador de Turno Actual -->
+    <div id="turnBadge" class="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-slate-900/90 border border-slate-800 text-sm font-medium text-slate-300 shadow-md">
+      <span class="text-slate-400">Turno:</span>
+      <span id="turnText" class="font-bold flex items-center gap-1.5 text-cyan-400">
+        <i class="fa-solid fa-xmark text-base"></i> Turno de las X
+      </span>
+    </div>
+
+    <!-- Tablero de Juego (3x3 Grid) -->
+    <div class="relative bg-slate-900/60 border border-slate-800/80 p-3 sm:p-4 rounded-3xl backdrop-blur-md shadow-2xl">
+      <div id="board" class="grid grid-cols-3 gap-2.5 sm:gap-3 aspect-square w-full" role="grid" aria-label="Tablero de 3 en raya">
+        <!-- 9 Celdas generadas por JS o directas -->
+        <button data-index="0" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 1"></button>
+        <button data-index="1" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 2"></button>
+        <button data-index="2" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 3"></button>
+        
+        <button data-index="3" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 4"></button>
+        <button data-index="4" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 5"></button>
+        <button data-index="5" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 6"></button>
+        
+        <button data-index="6" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 7"></button>
+        <button data-index="7" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 8"></button>
+        <button data-index="8" class="cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50" aria-label="Casilla 9"></button>
+      </div>
+
+      <!-- Overlay de Fin de Partida (Modal en tablero) -->
+      <div id="gameOverlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center z-20 animate-pop-in">
+        <div id="winnerIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center mb-3 shadow-lg">
+          <!-- Icono de victoria o empate inyectado dinámicamente -->
+        </div>
+        <h2 id="winnerTitle" class="text-2xl sm:text-3xl font-black mb-1">¡Victoria!</h2>
+        <p id="winnerSubtitle" class="text-sm text-slate-300 mb-6">El jugador X ha completado 3 en raya</p>
+        <div class="flex gap-3 w-full max-w-xs">
+          <button id="overlayPlayAgainBtn" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i>
+            <span>Jugar Otra Vez</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botón de Reinicio Rápido de Tablero -->
+    <div class="flex gap-3">
+      <button id="newRoundBtn" class="flex-1 py-3 px-4 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700/80 font-semibold text-slate-200 hover:text-white transition-all duration-200 flex items-center justify-center gap-2 shadow-md active:scale-98">
+        <i class="fa-solid fa-rotate text-sm"></i>
+        <span>Limpiar Tablero</span>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full max-w-md text-center py-4 text-xs text-slate-500">
+    <p>3 en Raya • HTML5 + Tailwind CSS + JavaScript Vanilla</p>
+  </footer>
+
+  <!-- Script del Juego -->
+  <script>
+    /* ========================================================
+       SISTEMA DE AUDIO (Web Audio API - Cero dependencias externas)
+       ======================================================== */
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      }
+
+      playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.15) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {
+          console.warn('Audio play error:', e);
+        }
+      }
+
+      playMove(isX) {
+        if (isX) {
+          this.playTone(520, 'triangle', 0.12, 0.2); // Tono claro para X
+        } else {
+          this.playTone(380, 'sine', 0.14, 0.22); // Tono suave para O
+        }
+      }
+
+      playWin() {
+        if (this.muted) return;
+        this.init();
+        const notes = [440, 554.37, 659.25, 880]; // La, Do#, Mi, La mayor
+        notes.forEach((freq, idx) => {
+          setTimeout(() => {
+            this.playTone(freq, 'triangle', 0.22, 0.2);
+          }, idx * 100);
+        });
+      }
+
+      playDraw() {
+        if (this.muted) return;
+        this.init();
+        const notes = [400, 360, 320, 280];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => {
+            this.playTone(freq, 'sawtooth', 0.18, 0.1);
+          }, idx * 80);
+        });
+      }
+
+      playClick() {
+        this.playTone(600, 'sine', 0.05, 0.08);
+      }
+    }
+
+    const sound = new SoundEffects();
+
+    /* ========================================================
+       LÓGICA DEL JUEGO
+       ======================================================== */
+    const WINNING_COMBOS = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
+      [0, 4, 8], [2, 4, 6]             // Diagonales
+    ];
+
+    const GameState = {
+      board: Array(9).fill(null),
+      currentPlayer: 'X',
+      gameActive: true,
+      gameMode: 'pvp', // 'pvp', 'ai_easy', 'ai_hard'
+      scores: { X: 0, O: 0, ties: 0 },
+      isAiThinking: false
+    };
+
+    // Elementos DOM
+    const cells = document.querySelectorAll('.cell');
+    const boardEl = document.getElementById('board');
+    const turnBadge = document.getElementById('turnBadge');
+    const turnText = document.getElementById('turnText');
+    const scoreXEl = document.getElementById('scoreX');
+    const scoreOEl = document.getElementById('scoreO');
+    const scoreTiesEl = document.getElementById('scoreTies');
+    const labelPlayerO = document.getElementById('labelPlayerO');
+    const glowX = document.getElementById('glowIndicatorX');
+    const glowO = document.getElementById('glowIndicatorO');
+
+    // Modos
+    const modePvpBtn = document.getElementById('modePvp');
+    const modeAiEasyBtn = document.getElementById('modeAiEasy');
+    const modeAiHardBtn = document.getElementById('modeAiHard');
+
+    // Botones de acción
+    const newRoundBtn = document.getElementById('newRoundBtn');
+    const resetAllBtn = document.getElementById('resetAllBtn');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIcon = document.getElementById('soundIcon');
+
+    // Overlay modal
+    const gameOverlay = document.getElementById('gameOverlay');
+    const winnerIconContainer = document.getElementById('winnerIconContainer');
+    const winnerTitle = document.getElementById('winnerTitle');
+    const winnerSubtitle = document.getElementById('winnerSubtitle');
+    const overlayPlayAgainBtn = document.getElementById('overlayPlayAgainBtn');
+
+    // SVGs para las fichas
+    const SVG_X = `
+      <svg class="w-14 h-14 sm:w-16 sm:h-16 text-cyan-400 drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] animate-pop-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    `;
+
+    const SVG_O = `
+      <svg class="w-14 h-14 sm:w-16 sm:h-16 text-rose-400 drop-shadow-[0_0_12px_rgba(244,63,94,0.6)] animate-pop-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"></circle>
+      </svg>
+    `;
+
+    // Inicializar eventos
+    function init() {
+      cells.forEach(cell => {
+        cell.addEventListener('click', handleCellClick);
+      });
+
+      modePvpBtn.addEventListener('click', () => setMode('pvp'));
+      modeAiEasyBtn.addEventListener('click', () => setMode('ai_easy'));
+      modeAiHardBtn.addEventListener('click', () => setMode('ai_hard'));
+
+      newRoundBtn.addEventListener('click', () => {
+        sound.playClick();
+        resetRound();
+      });
+
+      overlayPlayAgainBtn.addEventListener('click', () => {
+        sound.playClick();
+        resetRound();
+      });
+
+      resetAllBtn.addEventListener('click', () => {
+        sound.playClick();
+        resetAll();
+      });
+
+      soundToggleBtn.addEventListener('click', toggleSound);
+
+      updateTurnIndicator();
+      loadFromStorage();
+    }
+
+    // Manejar clic en celda
+    function handleCellClick(e) {
+      const cell = e.currentTarget;
+      const index = parseInt(cell.getAttribute('data-index'), 10);
+
+      if (GameState.board[index] !== null || !GameState.gameActive || GameState.isAiThinking) {
+        return;
+      }
+
+      makeMove(index, GameState.currentPlayer);
+
+      // Si el juego sigue activo y estamos contra la IA, turno de la máquina
+      if (GameState.gameActive && GameState.gameMode !== 'pvp' && GameState.currentPlayer === 'O') {
+        GameState.isAiThinking = true;
+        turnBadge.classList.add('animate-pulse');
+        turnText.innerHTML = `<i class="fa-solid fa-gear fa-spin text-rose-400"></i> La IA está pensando...`;
+
+        const delay = GameState.gameMode === 'ai_easy' ? 450 : 550;
+        setTimeout(() => {
+          if (!GameState.gameActive) {
+            GameState.isAiThinking = false;
+            turnBadge.classList.remove('animate-pulse');
+            return;
+          }
+          const aiIndex = GameState.gameMode === 'ai_easy' ? getEasyAiMove() : getBestMoveMinimax();
+          if (aiIndex !== -1 && aiIndex !== undefined) {
+            makeMove(aiIndex, 'O');
+          }
+          GameState.isAiThinking = false;
+          turnBadge.classList.remove('animate-pulse');
+          updateTurnIndicator();
+        }, delay);
+      }
+    }
+
+    // Ejecutar movimiento
+    function makeMove(index, player) {
+      GameState.board[index] = player;
+      const cell = cells[index];
+      cell.innerHTML = player === 'X' ? SVG_X : SVG_O;
+      cell.setAttribute('aria-label', `Casilla ${index + 1}, marcada por ${player}`);
+      cell.classList.add('cursor-default');
+
+      sound.playMove(player === 'X');
+
+      const winResult = checkWinner(GameState.board);
+      if (winResult) {
+        handleWin(winResult);
+        return;
+      }
+
+      if (isBoardFull(GameState.board)) {
+        handleDraw();
+        return;
+      }
+
+      // Cambiar turno
+      GameState.currentPlayer = GameState.currentPlayer === 'X' ? 'O' : 'X';
+      updateTurnIndicator();
+    }
+
+    // Actualizar indicador de turno visual
+    function updateTurnIndicator() {
+      if (!GameState.gameActive) return;
+
+      if (GameState.currentPlayer === 'X') {
+        turnText.className = 'font-bold flex items-center gap-1.5 text-cyan-400';
+        turnText.innerHTML = `<i class="fa-solid fa-xmark text-base"></i> Turno de las X`;
+        glowX.style.width = '100%';
+        glowO.style.width = '0%';
+      } else {
+        turnText.className = 'font-bold flex items-center gap-1.5 text-rose-400';
+        const label = GameState.gameMode === 'pvp' ? 'Turno de las O' : 'Turno de la IA (O)';
+        turnText.innerHTML = `<i class="fa-regular fa-circle text-base"></i> ${label}`;
+        glowX.style.width = '0%';
+        glowO.style.width = '100%';
+      }
+    }
+
+    // Comprobar ganador
+    function checkWinner(board) {
+      for (const combo of WINNING_COMBOS) {
+        const [a, b, c] = combo;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return { winner: board[a], combo };
+        }
+      }
+      return null;
+    }
+
+    function isBoardFull(board) {
+      return board.every(cell => cell !== null);
+    }
+
+    // Victoria
+    function handleWin({ winner, combo }) {
+      GameState.gameActive = false;
+      GameState.scores[winner]++;
+      saveToStorage();
+      updateScoreboard();
+
+      // Resaltar celdas ganadoras
+      combo.forEach(idx => {
+        const cell = cells[idx];
+        cell.classList.add(
+          'ring-4',
+          winner === 'X' ? 'ring-cyan-400' : 'ring-rose-400',
+          'bg-slate-700/90',
+          'scale-105',
+          'z-10'
+        );
+      });
+
+      sound.playWin();
+
+      // Lanzar confeti si gana el jugador X o en modo pvp
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 75,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: winner === 'X' ? ['#06b6d4', '#38bdf8', '#ffffff'] : ['#f43f5e', '#fb7185', '#ffffff']
+        });
+      }
+
+      // Mostrar overlay tras pequeña pausa
+      setTimeout(() => {
+        showGameOverModal(winner);
+      }, 700);
+    }
+
+    // Empate
+    function handleDraw() {
+      GameState.gameActive = false;
+      GameState.scores.ties++;
+      saveToStorage();
+      updateScoreboard();
+      sound.playDraw();
+
+      setTimeout(() => {
+        showGameOverModal(null);
+      }, 500);
+    }
+
+    // Mostrar modal con resultados
+    function showGameOverModal(winner) {
+      gameOverlay.classList.remove('hidden');
+
+      if (winner === 'X') {
+        winnerIconContainer.className = 'w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center mb-3 shadow-lg shadow-cyan-500/20 text-cyan-400';
+        winnerIconContainer.innerHTML = `<i class="fa-solid fa-trophy text-2xl"></i>`;
+        winnerTitle.className = 'text-2xl sm:text-3xl font-black mb-1 text-cyan-400';
+        winnerTitle.textContent = '¡Victoria de X!';
+        winnerSubtitle.textContent = GameState.gameMode === 'pvp' ? '¡El jugador X ha sido el vencedor!' : '¡Felicidades, venciste a la IA!';
+      } else if (winner === 'O') {
+        winnerIconContainer.className = 'w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-400/40 flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20 text-rose-400';
+        winnerIconContainer.innerHTML = winner === 'O' && GameState.gameMode !== 'pvp' 
+          ? `<i class="fa-solid fa-robot text-2xl"></i>` 
+          : `<i class="fa-solid fa-trophy text-2xl"></i>`;
+        winnerTitle.className = 'text-2xl sm:text-3xl font-black mb-1 text-rose-400';
+        winnerTitle.textContent = GameState.gameMode === 'pvp' ? '¡Victoria de O!' : '¡La IA Gana!';
+        winnerSubtitle.textContent = GameState.gameMode === 'pvp' ? '¡El jugador O ha completado la línea!' : 'La máquina se ha impuesto en esta ronda.';
+      } else {
+        winnerIconContainer.className = 'w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-3 shadow-lg text-slate-400';
+        winnerIconContainer.innerHTML = `<i class="fa-solid fa-handshake text-2xl"></i>`;
+        winnerTitle.className = 'text-2xl sm:text-3xl font-black mb-1 text-slate-200';
+        winnerTitle.textContent = '¡Empate!';
+        winnerSubtitle.textContent = '¡Partida muy reñida! Ninguno cedió terreno.';
+      }
+    }
+
+    // Reiniciar ronda
+    function resetRound() {
+      GameState.board = Array(9).fill(null);
+      GameState.currentPlayer = 'X';
+      GameState.gameActive = true;
+      GameState.isAiThinking = false;
+
+      cells.forEach(cell => {
+        cell.innerHTML = '';
+        cell.className = 'cell aspect-square rounded-2xl bg-slate-800/90 hover:bg-slate-750 active:scale-95 border border-slate-700/60 flex items-center justify-center text-4xl sm:text-5xl font-black transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-cyan-400/50';
+      });
+
+      gameOverlay.classList.add('hidden');
+      updateTurnIndicator();
+    }
+
+    // Reiniciar todo
+    function resetAll() {
+      GameState.scores = { X: 0, O: 0, ties: 0 };
+      saveToStorage();
+      updateScoreboard();
+      resetRound();
+    }
+
+    // Cambiar modo de juego
+    function setMode(mode) {
+      if (GameState.gameMode === mode) return;
+      sound.playClick();
+      GameState.gameMode = mode;
+
+      const activeClass = 'bg-cyan-500 text-slate-950 shadow-md';
+      const inactiveClass = 'text-slate-400 hover:text-white';
+
+      [modePvpBtn, modeAiEasyBtn, modeAiHardBtn].forEach(btn => {
+        btn.className = 'flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 ' + inactiveClass;
+      });
+
+      if (mode === 'pvp') {
+        modePvpBtn.className = 'flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ' + activeClass;
+        labelPlayerO.textContent = 'Jugador O';
+      } else if (mode === 'ai_easy') {
+        modeAiEasyBtn.className = 'flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 ' + activeClass;
+        labelPlayerO.textContent = 'IA Fácil';
+      } else {
+        modeAiHardBtn.className = 'flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 ' + activeClass;
+        labelPlayerO.textContent = 'IA Pro';
+      }
+
+      resetRound();
+    }
+
+    // Actualizar marcadores
+    function updateScoreboard() {
+      scoreXEl.textContent = GameState.scores.X;
+      scoreOEl.textContent = GameState.scores.O;
+      scoreTiesEl.textContent = GameState.scores.ties;
+    }
+
+    // Guardar / Cargar en localStorage
+    function saveToStorage() {
+      try {
+        localStorage.setItem('tictactoe_scores', JSON.stringify(GameState.scores));
+      } catch (e) {}
+    }
+
+    function loadFromStorage() {
+      try {
+        const saved = localStorage.getItem('tictactoe_scores');
+        if (saved) {
+          GameState.scores = JSON.parse(saved);
+          updateScoreboard();
+        }
+      } catch (e) {}
+    }
+
+    // Toggle Sonido
+    function toggleSound() {
+      sound.muted = !sound.muted;
+      if (sound.muted) {
+        soundIcon.className = 'fa-solid fa-volume-xmark text-lg text-slate-500';
+      } else {
+        soundIcon.className = 'fa-solid fa-volume-high text-lg text-cyan-400';
+        sound.playClick();
+      }
+    }
+
+    /* ========================================================
+       INTELIGENCIA ARTIFICIAL
+       ======================================================== */
+    // IA Fácil: Movimiento aleatorio con bloqueo ocasional
+    function getEasyAiMove() {
+      const emptyIndices = GameState.board
+        .map((val, idx) => (val === null ? idx : null))
+        .filter(val => val !== null);
+
+      if (emptyIndices.length === 0) return -1;
+
+      // 40% de probabilidad de bloquear si el rival va a ganar
+      if (Math.random() < 0.4) {
+        for (const idx of emptyIndices) {
+          const testBoard = [...GameState.board];
+          testBoard[idx] = 'X';
+          if (checkWinner(testBoard)) {
+            return idx; // Bloquear
+          }
+        }
+      }
+
+      // De lo contrario, movimiento aleatorio
+      const randomIndex = Math.floor(Math.random() * emptyIndices.length);
+      return emptyIndices[randomIndex];
+    }
+
+    // IA Imbatible: Algoritmo Minimax completo
+    function getBestMoveMinimax() {
+      let bestScore = -Infinity;
+      let move = -1;
+
+      for (let i = 0; i < 9; i++) {
+        if (GameState.board[i] === null) {
+          GameState.board[i] = 'O'; // IA es O
+          const score = minimax(GameState.board, 0, false);
+          GameState.board[i] = null;
+          if (score > bestScore) {
+            bestScore = score;
+            move = i;
+          }
+        }
+      }
+      return move;
+    }
+
+    function minimax(board, depth, isMaximizing) {
+      const result = checkWinner(board);
+      if (result) {
+        return result.winner === 'O' ? 10 - depth : depth - 10;
+      }
+      if (isBoardFull(board)) {
+        return 0; // Empate
+      }
+
+      if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === null) {
+            board[i] = 'O';
+            const evaluation = minimax(board, depth + 1, false);
+            board[i] = null;
+            maxEval = Math.max(maxEval, evaluation);
+          }
+        }
+        return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === null) {
+            board[i] = 'X';
+            const evaluation = minimax(board, depth + 1, true);
+            board[i] = null;
+            minEval = Math.min(minEval, evaluation);
+          }
+        }
+        return minEval;
+      }
+    }
+
+    // Arrancar la app al cargar
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
